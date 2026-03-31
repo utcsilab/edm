@@ -93,8 +93,15 @@ def main(**kwargs):
     dist.init()
 
     # Initialize config dict.
+<<<<<<< HEAD
     c = dnnlib.EasyDict()
     c.dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=opts.data, use_labels=opts.cond, xflip=opts.xflip, cache=opts.cache)
+=======
+    #NOTE easydict is just a dictionary with attributes instead of keys
+    #NOTE changed from ImageFolderDataset -> NumpyFolderDataset
+    c = dnnlib.EasyDict()
+    c.dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.NumpyFolderDataset', path=opts.data, use_labels=opts.cond, xflip=opts.xflip, cache=opts.cache)
+>>>>>>> 526d975 (initial commit)
     c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=opts.workers, prefetch_factor=2)
     c.network_kwargs = dnnlib.EasyDict()
     c.loss_kwargs = dnnlib.EasyDict()
@@ -102,9 +109,15 @@ def main(**kwargs):
 
     # Validate dataset options.
     try:
+<<<<<<< HEAD
         dataset_obj = dnnlib.util.construct_class_by_name(**c.dataset_kwargs)
         dataset_name = dataset_obj.name
         c.dataset_kwargs.resolution = dataset_obj.resolution # be explicit about dataset resolution
+=======
+        dataset_obj = dnnlib.util.construct_class_by_name(**c.dataset_kwargs) #NOTE weird way to construct a dataset but ok
+        dataset_name = dataset_obj.name
+        c.dataset_kwargs.resolution = dataset_obj.resolution # be explicit about dataset resolution NOTE calculated for you in Dataset constructor
+>>>>>>> 526d975 (initial commit)
         c.dataset_kwargs.max_size = len(dataset_obj) # be explicit about dataset size
         if opts.cond and not dataset_obj.has_labels:
             raise click.ClickException('--cond=True requires labels specified in dataset.json')
@@ -121,9 +134,18 @@ def main(**kwargs):
         c.network_kwargs.update(channel_mult_noise=2, resample_filter=[1,3,3,1], model_channels=128, channel_mult=[2,2,2])
     else:
         assert opts.arch == 'adm'
+<<<<<<< HEAD
         c.network_kwargs.update(model_type='DhariwalUNet', model_channels=192, channel_mult=[1,2,3,4])
 
     # Preconditioning & loss function.
+=======
+        # c.network_kwargs.update(model_type='DhariwalUNet', model_channels=192, channel_mult=[1,2,3,4])
+        c.network_kwargs.update(model_type='DhariwalUNet', model_channels=256, channel_mult=[1,1,2,2,4,4]) #NOTE changing to ImageNet default params from paper
+
+    # Preconditioning & loss function.
+    #NOTE Pre-Conditioning just reparameterises network output to be exactly \hat{x}_0
+    #   and the loss takes in all the raw info and does the forward pass 4 u
+>>>>>>> 526d975 (initial commit)
     if opts.precond == 'vp':
         c.network_kwargs.class_name = 'training.networks.VPPrecond'
         c.loss_kwargs.class_name = 'training.loss.VPLoss'
@@ -142,6 +164,7 @@ def main(**kwargs):
         c.network_kwargs.channel_mult = opts.cres
     if opts.augment:
         c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', p=opts.augment)
+<<<<<<< HEAD
         c.augment_kwargs.update(xflip=1e8, yflip=1, scale=1, rotate_frac=1, aniso=1, translate_frac=1)
         c.network_kwargs.augment_dim = 9
     c.network_kwargs.update(dropout=opts.dropout, use_fp16=opts.fp16)
@@ -149,6 +172,17 @@ def main(**kwargs):
     # Training options.
     c.total_kimg = max(int(opts.duration * 1000), 1)
     c.ema_halflife_kimg = int(opts.ema * 1000)
+=======
+        # c.augment_kwargs.update(xflip=1e8, yflip=1, scale=1, rotate_frac=1, aniso=1, translate_frac=1)
+        # c.network_kwargs.augment_dim = 9 #NOTE look at how many [w] we add to labels in augment.py to get this number
+        c.augment_kwargs.update(xflip=1e8, yflip=1, scale=1, rotate_frac=1, translate_frac=1) #NOTE removed anisotropic scaling
+        c.network_kwargs.augment_dim = 7
+    c.network_kwargs.update(dropout=opts.dropout, use_fp16=opts.fp16, label_dropout=0.1) #NOTE added label_dropout=0.1
+
+    # Training options.
+    c.total_kimg = max(int(opts.duration * 1000), 1) #NOTE Training duration, measured in thousands of training images.
+    c.ema_halflife_kimg = int(opts.ema * 1000) #NOTE Half-life of the exponential moving average (EMA) of model weights.
+>>>>>>> 526d975 (initial commit)
     c.update(batch_size=opts.batch, batch_gpu=opts.batch_gpu)
     c.update(loss_scaling=opts.ls, cudnn_benchmark=opts.bench)
     c.update(kimg_per_tick=opts.tick, snapshot_ticks=opts.snap, state_dump_ticks=opts.dump)

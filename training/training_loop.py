@@ -5,6 +5,8 @@
 # You should have received a copy of the license along with this
 # work. If not, see http://creativecommons.org/licenses/by-nc-sa/4.0/
 
+DEBUG = 0
+
 """Main training loop."""
 
 import os
@@ -16,6 +18,7 @@ import psutil
 import numpy as np
 import torch
 import dnnlib
+import sys
 from torch_utils import distributed as dist
 from torch_utils import training_stats
 from torch_utils import misc
@@ -61,6 +64,11 @@ def training_loop(
     if batch_gpu is None or batch_gpu > batch_gpu_total:
         batch_gpu = batch_gpu_total
     num_accumulation_rounds = batch_gpu_total // batch_gpu
+
+    print('batch size: {}'.format(batch_size))
+    print('batch gpu:  {}'.format(batch_gpu))
+    print('num_accum:  {}'.format(num_accumulation_rounds))
+    print('get_world_wize: {}'.format(dist.get_world_size()))
     assert batch_size == batch_gpu * num_accumulation_rounds * dist.get_world_size()
 
     # Load dataset.
@@ -80,7 +88,7 @@ def training_loop(
             sigma = torch.ones([batch_gpu], device=device)
             labels = torch.zeros([batch_gpu, net.label_dim], device=device)
             misc.print_module_summary(net, [images, sigma, labels], max_nesting=2)
-
+ 
     # Setup optimizer.
     dist.print0('Setting up optimizer...')
     loss_fn = dnnlib.util.construct_class_by_name(**loss_kwargs) # training.loss.(VP|VE|EDM)Loss
@@ -125,7 +133,7 @@ def training_loop(
         for round_idx in range(num_accumulation_rounds):
             with misc.ddp_sync(ddp, (round_idx == num_accumulation_rounds - 1)):
                 images, labels = next(dataset_iterator)
-                images = images.to(device).to(torch.float32) / 127.5 - 1
+                images = images.to(device).to(torch.float32) #/ 127.5 - 1 NOTE removing normalisation since MRI data pre-normalised
                 labels = labels.to(device)
                 loss = loss_fn(net=ddp, images=images, labels=labels, augment_pipe=augment_pipe)
                 training_stats.report('Loss/loss', loss)
