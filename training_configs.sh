@@ -1,0 +1,1 @@
+torchrun --standalone --nproc_per_node=3 train.py --outdir=/data/edm_outputs --data=/data/edm_training_data/fastmri_all_preprocessed --cond=1 --arch=ddpmpp --duration=10 --batch=15 --cbase=128 --cres=1,1,2,2,2,2,2 --lr=1e-4 --ema=0.1 --dropout=0.0 --desc=container_test --tick=1 --dump=100 --seed=2023 --precond edm
