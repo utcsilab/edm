@@ -1,4 +1,5 @@
 analyze-edm-training-loss.ipynb
+check_edm_progress.py
 dnnlib
 run-sampling-improved.sh
 run-training.sh
