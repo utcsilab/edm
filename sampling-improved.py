@@ -4,7 +4,7 @@ from sampling_funcs import StackedRandomGenerator
 
 def parse():
     parser = argparse.ArgumentParser(description="Generating prior samples for a range of x/y res, iterations, and experiments" )
-    parser.add_argument('experiments_models_labels',type=str,nargs='+',help='experiments, associated labels we want to sample for that experiment, and associated models [m<exp1> c<label1> c<label2>... n<net1> n<net2>... m<exp2> c<label1> c<label2>... n<net1> n<net2>... m<exp3>...]. label=-2 -> unconditional sampling, label=-1 -> random conditional sampling, label>=0 -> conditonal sampling with specified class')
+    parser.add_argument('experiments_models_labels',type=str,nargs='+',help='experiments, associated labels we want to sample for that experiment, and associated models [m<exp1> c<label1> c<label2>... n<net1> n<net2>... m<exp2> c<label1> c<label2>... n<net1> n<net2>... m<exp3>...]. label=-2 -> unconditional sampling, label=-2 -> no class conditioning, label=-1 -> random conditional sampling, label>=0 -> conditonal sampling with specified class')
     parser.add_argument('--batch_size',type=int,default=16,help='batch size for prior sample generation')
     parser.add_argument('--batch_num',type=int,default=1,help='number of batches')
     parser.add_argument('--resolutions',type=int,nargs='+',default=[200,200],help='resolution in (x,y) must be an even number of values')
