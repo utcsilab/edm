@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "edm"
 version = "0.1.0"
@@ -10,7 +14,7 @@ dependencies = [
     "imageio>=2.35.1",
     "imageio-ffmpeg>=0.4.3",
     "matplotlib>=3.7.5",
-    "numpy>=1.20",
+    "numpy>=1.20,<2",
     "pillow>=8.3.1",
     "psutil>=7.2.2",
     "pyspng>=0.1.4",
@@ -27,12 +31,32 @@ notebooks = [
 ]
 
 [tool.uv]
-package = false
 default-groups = ["notebooks"]
 
+[tool.setuptools]
+# Top-level single-file modules (root-level .py scripts that are valid Python module names)
+py-modules = [
+    "MRI_pre_proc_script",
+    "cfl",
+    "check_edm_progress",
+    "dataset_tool",
+    "example",
+    "fid",
+    "generate",
+    "motion_ops",
+    "sampling_funcs",
+    "train",
+    "utils",
+]
+
+[tool.setuptools.packages.find]
+include = ["dnnlib*", "training*", "torch_utils*", "Nufft_Torch*"]
+namespaces = true # lets Nufft_Torch be picked up even though it has no __init__.py.
+
+# Use PyTorch's CUDA 11.6 wheel index; PyPI fallback is CPU-only.
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cu116", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu116", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
 
 [[tool.uv.index]]
