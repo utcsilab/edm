@@ -1,3 +1,18 @@
+## uv Setup
+
+This branch uses [uv](https://docs.astral.sh/uv/) to manage Python packages and environments. To install dependencies, use the uv workflow below for this branch rather than pip or conda.
+
+```bash
+# install uv, if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# sync enviroment
+uv sync
+```
+
+When running commands from the original README, prefix each one with 'uv run'. The original README from the main branch is included below unchanged for reference.
+
+
 ## Elucidating the Design Space of Diffusion-Based Generative Models (EDM)<br><sub>Official PyTorch implementation of the NeurIPS 2022 paper</sub>
 
 ![Teaser image](./docs/teaser-1920x640.jpg)
