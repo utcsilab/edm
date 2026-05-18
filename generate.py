@@ -279,6 +279,8 @@ def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, device=
         # Pick latents and labels.
         rnd = StackedRandomGenerator(device, batch_seeds)
         latents = rnd.randn([batch_size, net.img_channels, net.img_resolution, net.img_resolution], device=device)
+        #latents = rnd.randn([batch_size, net.img_channels, 384, 320], device=device)# for fastmri
+
         class_labels = None
         if net.label_dim:
             class_labels = torch.eye(net.label_dim, device=device)[rnd.randint(net.label_dim, size=[batch_size], device=device)]
@@ -292,20 +294,30 @@ def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, device=
         sampler_fn = ablation_sampler if have_ablation_kwargs else edm_sampler
         images = sampler_fn(net, latents, class_labels, randn_like=rnd.randn_like, **sampler_kwargs)
 
-        # Save images.
-        images_np = (images * 127.5 + 128).clip(0, 255).to(torch.uint8).permute(0, 2, 3, 1).cpu().numpy()
+        # Save images. - main branch reference
+        # images_np = (images * 127.5 + 128).clip(0, 255).to(torch.uint8).permute(0, 2, 3, 1).cpu().numpy()
+        # for seed, image_np in zip(batch_seeds, images_np):
+        #     image_dir = os.path.join(outdir, f'{seed-seed%1000:06d}') if subdirs else outdir
+        #     os.makedirs(image_dir, exist_ok=True)
+        #     image_path = os.path.join(image_dir, f'{seed:06d}.png')
+        #     if image_np.shape[2] == 1:
+        #         PIL.Image.fromarray(image_np[:, :, 0], 'L').save(image_path)
+        #     else:
+        #         PIL.Image.fromarray(image_np, 'RGB').save(image_path)
+
+        # Save generated fastMRI-like 2-channel arrays as .npy.
+        images_np = images.detach().cpu().to(torch.float32).permute(0, 2, 3, 1).numpy()
+
         for seed, image_np in zip(batch_seeds, images_np):
             image_dir = os.path.join(outdir, f'{seed-seed%1000:06d}') if subdirs else outdir
             os.makedirs(image_dir, exist_ok=True)
-            image_path = os.path.join(image_dir, f'{seed:06d}.png')
-            if image_np.shape[2] == 1:
-                PIL.Image.fromarray(image_np[:, :, 0], 'L').save(image_path)
-            else:
-                PIL.Image.fromarray(image_np, 'RGB').save(image_path)
 
-    # Done.
-    torch.distributed.barrier()
-    dist.print0('Done.')
+            image_path = os.path.join(image_dir, f'{seed:06d}.npy')
+            np.save(image_path, image_np)
+
+        # Done.
+        torch.distributed.barrier()
+        dist.print0('Done.')
 
 #----------------------------------------------------------------------------
 
