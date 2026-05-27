@@ -16,6 +16,11 @@ import torch
 import dnnlib
 
 try:
+    import h5py
+except ImportError:
+    h5py = None
+
+try:
     import pyspng
 except ImportError:
     pyspng = None
@@ -328,3 +333,67 @@ class NumpyFolderDataset(Dataset):
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
+    
+
+class H5FolderDataset(Dataset):
+    def __init__(self,
+        path,                   # Path to directory.
+        resolution      = None, # Ensure specific resolution, None = highest available.
+        image_key      = 'img',
+        **super_kwargs,         # Additional arguments for the Dataset base class.
+    ):
+        if h5py is None:
+            raise IOError('h5py is required to load H5 datasets')
+
+        self._path = path
+        self._image_key = image_key
+
+        if os.path.isdir(self._path):
+            self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
+        else:
+            raise IOError('Path must point to a directory')
+
+        self._image_fnames = sorted(fname for fname in self._all_fnames if self._file_ext(fname) in ['.h5', '.hdf5'])
+        if len(self._image_fnames) == 0:
+            raise IOError('No H5 files found in the specified path')
+
+        name = os.path.splitext(os.path.basename(self._path))[0]
+        raw_shape = [len(self._image_fnames)] + list(self._load_raw_image(0).shape)
+        if resolution is not None and (raw_shape[2] != resolution or raw_shape[3] != resolution):
+            raise IOError('H5 image files do not match the specified resolution')
+        super().__init__(name=name, raw_shape=raw_shape, **super_kwargs)
+
+    @staticmethod
+    def _file_ext(fname):
+        return os.path.splitext(fname)[1].lower()
+
+    def _load_raw_image(self, raw_idx):
+        fname = self._image_fnames[raw_idx]
+        path = os.path.join(self._path, fname)
+        with h5py.File(path, 'r') as f:
+            if self._image_key not in f:
+                raise IOError(f'H5 file "{fname}" does not contain dataset "{self._image_key}"')
+            image = f[self._image_key][()]
+
+        image = np.squeeze(image)
+        if not np.iscomplexobj(image):
+            raise IOError(f'Expected complex-valued image in "{fname}"')
+        if image.ndim != 2:
+            raise IOError(f'Expected image in "{fname}" to squeeze to 2D, got shape {image.shape}')
+
+        return np.stack([image.real, image.imag], axis=0).astype(np.float32)
+
+    def _load_raw_labels(self):
+        fname = 'dataset.json'
+        if fname not in self._all_fnames:
+            return None
+        with open(os.path.join(self._path, fname), 'rb') as f:
+            labels = json.load(f)['labels']
+        if labels is None:
+            return None
+        labels = dict(labels)
+        labels = [labels[fname.replace('\\', '/')] for fname in self._image_fnames] #NOTE labels are now in same order as fnames
+        labels = np.array(labels)
+        labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
+        return labels
+        

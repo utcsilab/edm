@@ -43,6 +43,7 @@ def parse_int_list(s):
 # Main options.
 @click.option('--outdir',        help='Where to save the results', metavar='DIR',                   type=str, required=True)
 @click.option('--data',          help='Path to the dataset', metavar='ZIP|DIR',                     type=str, required=True)
+@click.option('--dataset-format', help='Dataset file format', metavar='npy|h5',                     type=click.Choice(['npy', 'h5']), default='npy', show_default=True)
 @click.option('--cond',          help='Train class-conditional model', metavar='BOOL',              type=bool, default=False, show_default=True)
 @click.option('--arch',          help='Network architecture', metavar='ddpmpp|ncsnpp|adm',          type=click.Choice(['ddpmpp', 'ncsnpp', 'adm']), default='ddpmpp', show_default=True)
 @click.option('--precond',       help='Preconditioning & loss function', metavar='vp|ve|edm',       type=click.Choice(['vp', 've', 'edm']), default='edm', show_default=True)
@@ -96,7 +97,11 @@ def main(**kwargs):
     #NOTE easydict is just a dictionary with attributes instead of keys
     #NOTE changed from ImageFolderDataset -> NumpyFolderDataset
     c = dnnlib.EasyDict()
-    c.dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.NumpyFolderDataset', path=opts.data, use_labels=opts.cond, xflip=opts.xflip, cache=opts.cache)
+    dataset_class = {
+        'npy': 'training.dataset.NumpyFolderDataset',
+        'h5': 'training.dataset.H5FolderDataset',
+    }[opts.dataset_format]
+    c.dataset_kwargs = dnnlib.EasyDict(class_name=dataset_class, path=opts.data, use_labels=opts.cond, xflip=opts.xflip, cache=opts.cache)
     c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=opts.workers, prefetch_factor=2)
     c.network_kwargs = dnnlib.EasyDict()
     c.loss_kwargs = dnnlib.EasyDict()
