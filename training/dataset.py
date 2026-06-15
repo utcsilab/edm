@@ -37,6 +37,7 @@ class Dataset(torch.utils.data.Dataset):
         xflip       = False,    # Artificially double the size of the dataset via x-flips. Applied after max_size.
         random_seed = 0,        # Random seed to use when applying max_size.
         cache       = False,    # Cache images in CPU memory?
+        num_classes = None,     # number of classes to reserve a label for
     ):
         self._name = name
         self._raw_shape = list(raw_shape)
@@ -45,6 +46,7 @@ class Dataset(torch.utils.data.Dataset):
         self._cached_images = dict() # {raw_idx: np.ndarray, ...}
         self._raw_labels = None
         self._label_shape = None
+        self._num_classes = num_classes
 
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
@@ -145,8 +147,13 @@ class Dataset(torch.utils.data.Dataset):
         if self._label_shape is None:
             raw_labels = self._get_raw_labels()
             if raw_labels.dtype == np.int64:
-                self._label_shape = [int(np.max(raw_labels)) + 1]
+                inferred = int(np.max(raw_labels)) + 1
+                if self._num_classes is not None and self._num_classes < inferred:
+                    raise IOError(f'num_classes={self._num_classes} is smaller than inferred class count {inferred}')
+                self._label_shape = [self._num_classes or inferred]
             else:
+                if self._num_classes is not None:
+                    raise IOError('num_classes can only be used with integer class labels')
                 self._label_shape = raw_labels.shape[1:]
         return list(self._label_shape)
 
