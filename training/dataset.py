@@ -381,14 +381,7 @@ class H5FolderDataset(Dataset):
             if self._image_key not in f:
                 raise IOError(f'H5 file "{fname}" does not contain dataset "{self._image_key}"')
             image = f[self._image_key][()]
-
-        image = np.squeeze(image)
-        if not np.iscomplexobj(image):
-            raise IOError(f'Expected complex-valued image in "{fname}"')
-        if image.ndim != 2:
-            raise IOError(f'Expected image in "{fname}" to squeeze to 2D, got shape {image.shape}')
-
-        return np.stack([image.real, image.imag], axis=0).astype(np.float32)
+        return np.asarray(image)
 
     def _load_raw_labels(self):
         fname = 'dataset.json'
