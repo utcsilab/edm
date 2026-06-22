@@ -219,6 +219,7 @@ def parse_int_list(s):
 @click.option('--subdirs',                 help='Create subdirectory for every 1000 seeds',                         is_flag=True)
 @click.option('--class', 'class_idx',      help='Class label  [default: random]', metavar='INT',                    type=click.IntRange(min=0), default=None)
 @click.option('--batch', 'max_batch_size', help='Maximum batch size', metavar='INT',                                type=click.IntRange(min=1), default=64, show_default=True)
+@click.option('--fp', 'inference_fp',      help='Inference precision', metavar='16|32',                             type=click.Choice(['16', '32']), default='32', show_default=True)
 
 @click.option('--steps', 'num_steps',      help='Number of sampling steps', metavar='INT',                          type=click.IntRange(min=1), default=18, show_default=True)
 @click.option('--sigma_min',               help='Lowest noise level  [default: varies]', metavar='FLOAT',           type=click.FloatRange(min=0, min_open=True))
@@ -234,7 +235,7 @@ def parse_int_list(s):
 @click.option('--schedule',                help='Ablate noise schedule sigma(t)', metavar='vp|ve|linear',           type=click.Choice(['vp', 've', 'linear']))
 @click.option('--scaling',                 help='Ablate signal scaling s(t)', metavar='vp|none',                    type=click.Choice(['vp', 'none']))
 
-def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, device=torch.device('cuda'), **sampler_kwargs):
+def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, inference_fp, device=torch.device('cuda'), **sampler_kwargs):
     """Generate random images using the techniques described in the paper
     "Elucidating the Design Space of Diffusion-Based Generative Models".
 
@@ -263,6 +264,8 @@ def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, device=
     dist.print0(f'Loading network from "{network_pkl}"...')
     with dnnlib.util.open_url(network_pkl, verbose=(dist.get_rank() == 0)) as f:
         net = pickle.load(f)['ema'].to(device)
+    net.use_fp16 = inference_fp == '16'
+    net.eval()
 
     # Other ranks follow.
     if dist.get_rank() == 0:
@@ -305,8 +308,8 @@ def main(network_pkl, outdir, subdirs, seeds, class_idx, max_batch_size, device=
         #     else:
         #         PIL.Image.fromarray(image_np, 'RGB').save(image_path)
 
-        # Save generated fastMRI-like 2-channel arrays as .npy.
-        images_np = images.detach().cpu().to(torch.float32).permute(0, 2, 3, 1).numpy()
+        # Save generated arrays as .npy (CHW, matching training dataset layout).
+        images_np = images.detach().cpu().to(torch.float32).numpy()
 
         for seed, image_np in zip(batch_seeds, images_np):
             image_dir = os.path.join(outdir, f'{seed-seed%1000:06d}') if subdirs else outdir
