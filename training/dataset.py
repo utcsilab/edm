@@ -254,6 +254,15 @@ class ImageFolderDataset(Dataset):
             return None
         labels = dict(labels)
         labels = [labels[fname.replace('\\', '/')] for fname in self._image_fnames] #NOTE labels are now in same order as fnames
+
+        #NOTE labels given as .npy filenames -> load each embedding vector
+        if len(labels) > 0 and isinstance(labels[0], str):
+            vecs = []
+            for p in labels:
+                with self._open_file(p.replace('\\', '/')) as f:
+                    vecs.append(np.load(f).reshape(-1))
+            return np.stack(vecs).astype(np.float32)
+
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
@@ -281,12 +290,14 @@ class NumpyFolderDataset(Dataset):
             self._all_fnames = set(self._get_zipfile().namelist())
         else:
             raise IOError('Path must point to a directory or zip')
-        
+
         #NOTE this chunk was changed to point to .npy files
-        self._image_fnames = sorted(fname for fname in self._all_fnames if self._file_ext(fname) == ".npy") #NOTE changed to only grab .npy
+        #NOTE exclude .npy files that are referenced as embedding labels in dataset.json so they aren't treated as images
+        label_npy_fnames = self._get_label_npy_fnames()
+        self._image_fnames = sorted(fname for fname in self._all_fnames if self._file_ext(fname) == ".npy" and fname.replace('\\', '/') not in label_npy_fnames) #NOTE changed to only grab .npy
         if len(self._image_fnames) == 0:
             raise IOError('No image files found in the specified path')
-        
+
         name = os.path.splitext(os.path.basename(self._path))[0]
         raw_shape = [len(self._image_fnames)] + list(self._load_raw_image(0).shape)
         if resolution is not None and (raw_shape[2] != resolution or raw_shape[3] != resolution):
@@ -327,6 +338,17 @@ class NumpyFolderDataset(Dataset):
             image = np.load(f)
         return image
     
+    #NOTE returns the set of .npy filenames referenced as embedding labels in dataset.json (empty if none)
+    def _get_label_npy_fnames(self):
+        fname = 'dataset.json'
+        if fname not in self._all_fnames:
+            return set()
+        with self._open_file(fname) as f:
+            labels = json.load(f).get('labels')
+        if labels is None:
+            return set()
+        return {v.replace('\\', '/') for _, v in labels if isinstance(v, str)}
+
     def _load_raw_labels(self):
         fname = 'dataset.json'
         if fname not in self._all_fnames:
@@ -337,10 +359,19 @@ class NumpyFolderDataset(Dataset):
             return None
         labels = dict(labels)
         labels = [labels[fname.replace('\\', '/')] for fname in self._image_fnames] #NOTE labels are now in same order as fnames
+
+        #NOTE labels given as .npy filenames -> load each embedding vector
+        if len(labels) > 0 and isinstance(labels[0], str):
+            vecs = []
+            for p in labels:
+                with self._open_file(p.replace('\\', '/')) as f:
+                    vecs.append(np.load(f).reshape(-1))
+            return np.stack(vecs).astype(np.float32)
+
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
-    
+
 
 class H5FolderDataset(Dataset):
     def __init__(self,
@@ -393,7 +424,13 @@ class H5FolderDataset(Dataset):
             return None
         labels = dict(labels)
         labels = [labels[fname.replace('\\', '/')] for fname in self._image_fnames] #NOTE labels are now in same order as fnames
+
+        #NOTE labels given as .npy filenames -> load each embedding vector
+        if len(labels) > 0 and isinstance(labels[0], str):
+            vecs = [np.load(os.path.join(self._path, p.replace('\\', '/'))).reshape(-1) for p in labels]
+            return np.stack(vecs).astype(np.float32)
+
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
-        
+
